@@ -1,129 +1,90 @@
-
-#Step 1: Import socket
-#Tamil explanation
-#  socket na OS-oda network phone 📞
-#   Computer-ku computer pesura bridge.
-
 import socket
+import threading
 
-# Step 2: Define common ports
-# Common ports to scan
 COMMON_PORTS = {
     21: "FTP",
     22: "SSH",
     23: "Telnet",
     25: "SMTP",
+    53: "DNS",
     80: "HTTP",
+    110: "POP3",
+    143: "IMAP",
     443: "HTTPS",
-    3306: "MySQL"
+    445: "SMB",
+    3306: "MySQL",
+    3389: "RDP"
 }
 
-# Key = port number
-# Value = service name
-# Easy-ah output readable.
+print_lock = threading.Lock()
 
-# Step 3: Port scan function
 
-def scan_port(target, port):
+def scan_port(target: str, port: int, timeout: float = 1.0) -> bool:
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        
-     #Explanation:
-     #AF_INET → IPv4
-     #SOCK_STREAM → TCP
+        sock.settimeout(timeout)
 
-     #settimeout(1) →
-
-     # 1 second wait, illatti hang aagum 😅
-
-      # Step 4: Try connecting 
-      #  
         result = sock.connect_ex((target, port))
         sock.close()
 
-        #VERY IMPORTANT
-
-# connect_ex() returns:
-
-# 0 → SUCCESS → port OPEN
-
-# non-zero → FAIL → CLOSED
-
-# Step 5: Check result
-
-        if result == 0:
-            return True
-        else:
-            return False
-    except Exception:
+        return result == 0
+    except:
         return False
 
-# Simple logic.
-# Security tools simple logic + powerful idea.
 
-# Step 6: Main program
-
-def main():
-    target = input("Enter IP or domain: ")
-
-    print(f"\nScanning {target}...\n")
-
-    #User input = reconnaissance target 🎯
-
-    # Step 7: Loop through ports
-
-    for port, service in COMMON_PORTS.items():
-        if scan_port(target, port):
-            print(f"[OPEN]   Port {port} ({service})")
-        else:
-            print(f"[CLOSED] Port {port} ({service})")
-
-if __name__ == "__main__":
-    main()
-
-# One by one doors check pannrom
-# Output clearly visible
-
-# Banner grabbing function (optional)
-# banner grabbing helps identify services running on open ports and versions.
-
-def grab_banner(target, port):
+def grab_banner(target: str, port: int, timeout: float = 2.0):
     try:
-        sock = socket.socket()
-        sock.settimeout(2)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
         sock.connect((target, port))
-        banner = sock.recv(1024).decode().strip()
+
+        banner = sock.recv(1024)
         sock.close()
-        return banner
+
+        banner_text = banner.decode(errors="ignore").strip()
+        return banner_text if banner_text else None
     except:
         return None
 
-# modify the scan output
 
-if scan_port(target, port):
-    banner = grab_banner(target, port)
-    print(f"[OPEN] Port {port} ({service})")
-    if banner:
-        print(f"       Banner: {banner}")
+def worker(target: str, port: int, service_name: str, do_banner: bool):
+    is_open = scan_port(target, port)
 
-# Faster Scanning with Threading ⚡
+    with print_lock:
+        if is_open:
+            print(f"[OPEN]   Port {port:<5} ({service_name})")
+            if do_banner:
+                banner = grab_banner(target, port)
+                if banner:
+                    print(f"        Banner: {banner}")
+                else:
+                    print(f"        Banner: (no banner / blocked / silent)")
+        else:
+            print(f"[CLOSED] Port {port:<5} ({service_name})")
 
-# Threading = scan multiple ports at once.
 
-        import threading
+def main():
+    print("\n🔍 Python Port Scanner (Beginner)")
+    print("----------------------------------")
 
-def threaded_scan(target, port, service):
-    if scan_port(target, port):
-        print(f"[OPEN] Port {port} ({service})")
+    target = input("Enter IP or domain: ").strip()
 
-threads = []
+    banner_choice = input("Enable banner grabbing? (y/n): ").strip().lower()
+    do_banner = banner_choice == "y"
 
-for port, service in COMMON_PORTS.items():
-    t = threading.Thread(target=threaded_scan, args=(target, port, service))
-    threads.append(t)
-    t.start()
+    print(f"\nScanning target: {target}\n")
 
-for t in threads:
-    t.join()
+    threads = []
+    for port, service_name in COMMON_PORTS.items():
+        t = threading.Thread(target=worker, args=(target, port, service_name, do_banner))
+        threads.append(t)
+        t.start()
 
+    for t in threads:
+        t.join()
+
+    print("\n✅ Scan Completed!\n")
+
+
+if __name__ == "__main__":
+    main()
