@@ -1,0 +1,13 @@
+❤️ Author
+
+Made for learning Cybersecurity + AI + Automation 🚀
+
+
+---
+
+# ✅ 3) `requirements.txt`
+
+```txt
+# No external dependencies needed
+# This project uses only Python built-in libraries:
+# socket, threading
